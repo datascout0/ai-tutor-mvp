@@ -540,7 +540,7 @@ export default function LanguageTutorApp() {
               }}
               className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700"
             >
-              Start this band
+              Start this skill band
             </button>
             <button
               onClick={() => setScreen('level')}
@@ -600,7 +600,7 @@ export default function LanguageTutorApp() {
                 }}
                 className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700"
               >
-                Retry this band
+                Retry this skill band
               </button>
               <button
                 onClick={resetLanguageFlow}
@@ -817,7 +817,7 @@ export default function LanguageTutorApp() {
 
             <div className="flex justify-between items-center mt-6 text-sm text-gray-700">
               <button onClick={resetBand} className="underline">
-                Retry this band
+                Retry this skill band
              </button>
               <button onClick={goToLevelSelection} className="underline">
                 Change level
@@ -842,7 +842,7 @@ export default function LanguageTutorApp() {
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center justify-center p-4 relative">
         <UsernameHeader />
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-3xl w-full">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2 text-center">Band summary</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2 text-center">Skill Band summary</h2>
           <p className="text-gray-800 text-center mb-6">
             Skill band {skillBand} of 5 · {selectedLanguage} · {selectedLevel}
           </p>
@@ -888,7 +888,7 @@ export default function LanguageTutorApp() {
               onClick={resetBand}
               className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700"
             >
-              Retry this band
+              Retry this skill band
             </button>
             
             <button
@@ -898,13 +898,15 @@ export default function LanguageTutorApp() {
             >
               Change Level
             </button>
-            <button
-              type="button"
-              onClick={goToNextBand}
-              className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700"
-            >
-              Go to next band
-            </button>
+             {skillBand < 5 && (
+    <button
+      type="button"
+      onClick={goToNextBand}
+      className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700"
+    >
+      Go to next skill band
+    </button>
+  )}
           </div>
           <button
             type="button"

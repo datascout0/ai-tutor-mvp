@@ -37,150 +37,181 @@ function buildTaskInstruction(
   const difficulty = difficultyDescriptor(band);
 
   if (level === 'Basic') {
-    return `You are a ${language} language teacher.
-Generate EXACTLY ${count} vocabulary questions for skill band ${band} of 5.
+    return `You are a ${language} language teacher. Generate EXACTLY ${count} vocabulary questions for skill band ${band} of 5.
 
-Requirements:
+CRITICAL REQUIREMENTS:
 - Difficulty: ${difficulty}
-- Target user is an English speaker learning ${language}.
-- Single words or very short phrases only (no long sentences).
-- Mix directions:
-  - At least half English -> ${language}
-  - The rest ${language} -> English
-- Each question must be multiple choice with 4-5 plausible options.
-- Options must be real plausible words, not nonsense.
-- Make sure questions for this band are DIFFERENT from earlier bands conceptually.
+- Single words or very short phrases only
+- Mix directions: half English→${language}, half ${language}→English
+- Each question has 5 multiple choice options
+- All options must be real ${language} words
 
-Return ONLY a pure JSON array, no markdown, no explanations.
-Each item must strictly have:
-{
-  "question": "string",
-  "answer": "string",
-  "options": ["opt1","opt2","opt3","opt4","opt5"],
-  "direction": "en-to-target" | "target-to-en",
-  "type": "multiple-choice",
-  "questionLanguage": "en" | "target"
-}`;
+RESPONSE FORMAT - Return ONLY this JSON structure with NO other text:
+[
+  {
+    "question": "Hello",
+    "answer": "Bonjour",
+    "options": ["Bonjour", "Au revoir", "Merci", "Bonsoir", "Salut"],
+    "direction": "en-to-target",
+    "type": "multiple-choice",
+    "questionLanguage": "en"
+  }
+]
+
+DO NOT include markdown, explanations, or any text outside the JSON array.`;
   }
 
   if (level === 'Moderate') {
-    return `You are a ${language} language teacher.
-Generate EXACTLY ${count} conversational questions for skill band ${band} of 5.
+    return `You are a ${language} language teacher. Generate EXACTLY ${count} conversational questions for skill band ${band} of 5.
 
-Requirements:
+CRITICAL REQUIREMENTS:
 - Difficulty: ${difficulty}
-- Phrases and short sentences used in everyday conversations.
-- Mix of:
-  - Multiple choice questions (3 plausible options)
-  - Type-answer questions (no options)
-- Mix directions:
-  - Some English -> ${language}
-  - Some ${language} -> English
-- Make this band clearly more challenging than earlier bands.
+- Phrases and short sentences
+- 60% multiple choice (3 options), 40% type-answer (no options)
+- Mix directions
 
-Return ONLY a pure JSON array, no markdown, no explanations.
-Each item must strictly have:
-{
-  "question": "string",
-  "answer": "string",
-  "options": ["opt1","opt2","opt3"] or null for type-answer,
-  "direction": "en-to-target" | "target-to-en",
-  "type": "multiple-choice" | "type-answer",
-  "questionLanguage": "en" | "target"
-}`;
+RESPONSE FORMAT - Return ONLY this JSON structure with NO other text:
+[
+  {
+    "question": "How are you?",
+    "answer": "Comment allez-vous?",
+    "options": ["Comment allez-vous?", "Où est la gare?", "Je m'appelle"],
+    "direction": "en-to-target",
+    "type": "multiple-choice",
+    "questionLanguage": "en"
+  },
+  {
+    "question": "Merci beaucoup",
+    "answer": "Thank you very much",
+    "direction": "target-to-en",
+    "type": "type-answer",
+    "questionLanguage": "target"
+  }
+]
+
+DO NOT include markdown, explanations, or any text outside the JSON array.`;
   }
 
-  return `You are a ${language} language teacher.
-Generate EXACTLY ${count} advanced questions for skill band ${band} of 5.
+  return `You are a ${language} language teacher. Generate EXACTLY ${count} advanced questions for skill band ${band} of 5.
 
-Requirements:
+CRITICAL REQUIREMENTS:
 - Difficulty: ${difficulty}
-- Professional or elevator-pitch style sentences or short paragraphs.
-- Mix of:
-  - Multiple choice questions (3 plausible options)
-  - Type-answer questions
-- Mix directions:
-  - Some English -> ${language}
-  - Some ${language} -> English
-- Make sure this band is clearly more advanced than earlier bands.
+- Professional sentences or short paragraphs
+- 50% multiple choice (3 options), 50% type-answer
+- Mix directions
 
-Return ONLY a pure JSON array, no markdown, no explanations.
-Each item must strictly have:
-{
-  "question": "string",
-  "answer": "string",
-  "options": ["opt1","opt2","opt3"] or null for type-answer,
-  "direction": "en-to-target" | "target-to-en",
-  "type": "multiple-choice" | "type-answer",
-  "questionLanguage": "en" | "target"
-}`;
+RESPONSE FORMAT - Return ONLY a JSON array with NO other text.
+DO NOT include markdown, explanations, or any text outside the JSON array.`;
 }
 
-function parseQuestionsFromText(rawText: string, count: number, source: string): Question[] {
-  let content = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-  const match = content.match(/\[[\s\S]*\]/);
-  if (match) {
-    content = match[0];
+function parseQuestionsFromText(rawText: string, count: number): Question[] {
+  console.log('Raw AI response (first 200 chars):', rawText.slice(0, 200));
+  
+  // Remove markdown code blocks
+  let content = rawText
+    .replace(/```json\s*/g, '')
+    .replace(/```\s*/g, '')
+    .trim();
+  
+  // Remove any text before the first [
+  const startIndex = content.indexOf('[');
+  if (startIndex > 0) {
+    content = content.slice(startIndex);
+  }
+  
+  // Remove any text after the last ]
+  const endIndex = content.lastIndexOf(']');
+  if (endIndex !== -1) {
+    content = content.slice(0, endIndex + 1);
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);
   } catch (err) {
-    console.error(`Failed to parse JSON from ${source}`, err, content.slice(0, 400));
-    throw new Error(`${source} returned invalid JSON`);
+    console.error('JSON Parse Error:', err);
+    console.error('Attempted to parse:', content.slice(0, 500));
+    throw new Error('AI returned invalid JSON. The model may need a moment to respond properly.');
   }
 
-  if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new Error(`${source} returned empty or invalid array`);
+  if (!Array.isArray(parsed)) {
+    console.error('Response is not an array:', parsed);
+    throw new Error('AI response is not a valid array');
   }
+
+  if (parsed.length === 0) {
+    throw new Error('AI returned an empty array');
+  }
+
+  console.log(`AI returned ${parsed.length} items, processing...`);
 
   const items = (parsed as any[]).slice(0, count);
+  const questions: Question[] = [];
 
-  const questions: Question[] = items
-    .map((item) => {
-      const baseQuestion = String(item.question ?? '');
-      const baseAnswer = String(item.answer ?? '');
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    
+    // Validate required fields
+    if (!item.question || !item.answer) {
+      console.warn(`Skipping item ${i}: missing question or answer`, item);
+      continue;
+    }
 
-      if (!baseQuestion.trim() || !baseAnswer.trim()) {
-        return null;
+    const baseQuestion = String(item.question).trim();
+    const baseAnswer = String(item.answer).trim();
+
+    if (!baseQuestion || !baseAnswer) {
+      console.warn(`Skipping item ${i}: empty question or answer`);
+      continue;
+    }
+
+    const direction: Question['direction'] =
+      item.direction === 'target-to-en' ? 'target-to-en' : 'en-to-target';
+
+    const questionLanguage: Question['questionLanguage'] =
+      item.questionLanguage === 'target' ? 'target' : 'en';
+
+    // Determine type based on presence of options
+    const hasOptions = Array.isArray(item.options) && item.options.length > 0;
+    const type: Question['type'] = hasOptions ? 'multiple-choice' : 'type-answer';
+
+    let options: string[] | undefined;
+    if (type === 'multiple-choice') {
+      const rawOptions = Array.isArray(item.options) ? item.options : [];
+      const baseOptions: string[] = rawOptions
+        .map((o: any) => String(o).trim())
+        .filter((o: string) => o.length > 0);
+      
+      // Ensure answer is in options
+      if (!baseOptions.includes(baseAnswer)) {
+        baseOptions.push(baseAnswer);
       }
-
-      const direction: Question['direction'] =
-        item.direction === 'target-to-en' ? 'target-to-en' : 'en-to-target';
-
-      const questionLanguage: Question['questionLanguage'] =
-        item.questionLanguage === 'target' ? 'target' : 'en';
-
-      const type: Question['type'] =
-        item.type === 'type-answer' ? 'type-answer' : 'multiple-choice';
-
-      let options: string[] | undefined;
-      if (type === 'multiple-choice') {
-        const rawOptions = Array.isArray(item.options) ? item.options : [];
-        const baseOptions = rawOptions.map((o: any) => String(o));
-        if (!baseOptions.includes(baseAnswer)) {
-          baseOptions.push(baseAnswer);
-        }
-        const unique = Array.from(new Set(baseOptions));
-        options = shuffle(unique).slice(0, 5);
+      
+      // Remove duplicates and shuffle
+      const unique: string[] = Array.from(new Set(baseOptions));
+      options = shuffle(unique).slice(0, 5);
+      
+      // If we don't have enough options, skip this question
+      if (options.length < 2) {
+        console.warn(`Skipping item ${i}: not enough valid options`);
+        continue;
       }
+    }
 
-      const q: Question = {
-        question: baseQuestion,
-        answer: baseAnswer,
-        options,
-        direction,
-        type,
-        questionLanguage,
-      };
+    questions.push({
+      question: baseQuestion,
+      answer: baseAnswer,
+      options,
+      direction,
+      type,
+      questionLanguage,
+    });
+  }
 
-      return q;
-    })
-    .filter((q): q is Question => q !== null);
+  console.log(`Successfully processed ${questions.length} valid questions`);
 
-  if (!questions.length) {
-    throw new Error(`${source} did not produce any usable questions`);
+  if (questions.length === 0) {
+    throw new Error('No valid questions could be extracted from AI response');
   }
 
   return questions;
@@ -195,187 +226,77 @@ function shuffle<T>(arr: T[]): T[] {
   return copy;
 }
 
-async function generateWithGemini(
-  taskInstruction: string,
-  count: number,
-): Promise<Question[]> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not set');
-  }
-
-  const body = {
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: taskInstruction }],
-      },
-    ],
-    generationConfig: {
-      response_mime_type: 'application/json',
-    },
-  };
-
-  const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    },
-  );
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    console.error('Gemini HTTP error', resp.status, text);
-    throw new Error(`Gemini HTTP ${resp.status}`);
-  }
-
-  const json = await resp.json();
-  const rawText: string | undefined =
-    json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
-    json?.candidates?.[0]?.output_text?.trim();
-
-  if (!rawText) {
-    throw new Error('Gemini returned empty text');
-  }
-
-  return parseQuestionsFromText(rawText, count, 'Gemini');
-}
-
 async function generateWithGroq(
   taskInstruction: string,
   count: number,
+  retryCount: number = 0,
 ): Promise<Question[]> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    throw new Error('GROQ_API_KEY is not set');
+    throw new Error('GROQ_API_KEY is not set in environment variables');
   }
 
-  const body = {
-    model: 'llama-3.1-70b-versatile',
-    messages: [
-      {
-        role: 'user',
-        content: taskInstruction,
+  try {
+    const body = {
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a language teacher. Always respond with ONLY valid JSON arrays. Never include explanations, markdown formatting, or any text outside the JSON structure.',
+        },
+        {
+          role: 'user',
+          content: taskInstruction,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 3000,
+    };
+
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
-    ],
-    temperature: 0.2,
-  };
+      body: JSON.stringify(body),
+    });
 
-  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error('Groq HTTP error:', resp.status, text);
+      
+      // Retry on 429 (rate limit) or 503 (service unavailable)
+      if ((resp.status === 429 || resp.status === 503) && retryCount < 2) {
+        console.log(`Retrying after ${resp.status} error... (attempt ${retryCount + 1})`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+        return generateWithGroq(taskInstruction, count, retryCount + 1);
+      }
+      
+      throw new Error(`Groq API error: HTTP ${resp.status}`);
+    }
 
-  if (!resp.ok) {
-    const text = await resp.text();
-    console.error('Groq HTTP error', resp.status, text);
-    throw new Error(`Groq HTTP ${resp.status}`);
+    const json = await resp.json();
+    const rawText: string | undefined = json?.choices?.[0]?.message?.content?.trim();
+
+    if (!rawText) {
+      throw new Error('Groq returned empty response');
+    }
+
+    return parseQuestionsFromText(rawText, count);
+    
+  } catch (error) {
+    console.error('Groq generation error:', error);
+    
+    // Retry on parsing errors (sometimes Groq just needs another attempt)
+    if (retryCount < 2 && error instanceof Error && error.message.includes('JSON')) {
+      console.log(`Retrying after JSON error... (attempt ${retryCount + 1})`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return generateWithGroq(taskInstruction, count, retryCount + 1);
+    }
+    
+    throw error;
   }
-
-  const json = await resp.json();
-  const rawText: string | undefined = json?.choices?.[0]?.message?.content?.trim();
-
-  if (!rawText) {
-    throw new Error('Groq returned empty text');
-  }
-
-  return parseQuestionsFromText(rawText, count, 'Groq');
-}
-
-async function generateWithOpenAI(
-  taskInstruction: string,
-  count: number,
-): Promise<Question[]> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not set');
-  }
-
-  const body = {
-    model: 'gpt-4.1-mini',
-    messages: [
-      {
-        role: 'user',
-        content: taskInstruction,
-      },
-    ],
-    temperature: 0.2,
-  };
-
-  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    console.error('OpenAI HTTP error', resp.status, text);
-    throw new Error(`OpenAI HTTP ${resp.status}`);
-  }
-
-  const json = await resp.json();
-  const rawText: string | undefined = json?.choices?.[0]?.message?.content?.trim();
-
-  if (!rawText) {
-    throw new Error('OpenAI returned empty text');
-  }
-
-  return parseQuestionsFromText(rawText, count, 'OpenAI');
-}
-
-async function generateWithPerplexity(
-  taskInstruction: string,
-  count: number,
-): Promise<Question[]> {
-  const apiKey = process.env.PERPLEXITY_API_KEY;
-  if (!apiKey) {
-    throw new Error('PERPLEXITY_API_KEY is not set');
-  }
-
-  const body = {
-    model: 'llama-3.1-sonar-small-128k-chat',
-    messages: [
-      {
-        role: 'user',
-        content: taskInstruction,
-      },
-    ],
-    temperature: 0.2,
-  };
-
-  const resp = await fetch('https://api.perplexity.ai/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    console.error('Perplexity HTTP error', resp.status, text);
-    throw new Error(`Perplexity HTTP ${resp.status}`);
-  }
-
-  const json = await resp.json();
-  const rawText: string | undefined = json?.choices?.[0]?.message?.content?.trim();
-
-  if (!rawText) {
-    throw new Error('Perplexity returned empty text');
-  }
-
-  return parseQuestionsFromText(rawText, count, 'Perplexity');
 }
 
 export async function POST(req: Request) {
@@ -400,70 +321,43 @@ export async function POST(req: Request) {
         ? Number(countRaw)
         : 6;
 
-    if (!language || !level || !band || !count) {
+    if (!language || !level || isNaN(band) || isNaN(count)) {
       return NextResponse.json(
-        { error: 'Missing language, level, band, or count' },
+        { error: 'Missing or invalid parameters: language, level, band, or count' },
         { status: 400 },
       );
     }
 
+    console.log(`\n=== Generating Questions ===`);
+    console.log(`Language: ${language}, Level: ${level}, Band: ${band}, Count: ${count}`);
+
     const taskInstruction = buildTaskInstruction(language, level, band, count);
+    const questions = await generateWithGroq(taskInstruction, count);
 
-    const providers: {
-      name: string;
-      fn: (inst: string, c: number) => Promise<Question[]>;
-    }[] = [];
+    console.log(`✅ Successfully generated ${questions.length} questions\n`);
 
-    if (process.env.GEMINI_API_KEY) {
-      providers.push({ name: 'Gemini', fn: generateWithGemini });
-    }
-    if (process.env.OPENAI_API_KEY) {
-      providers.push({ name: 'OpenAI', fn: generateWithOpenAI });
-    }
-    if (process.env.GROQ_API_KEY) {
-      providers.push({ name: 'Groq', fn: generateWithGroq });
-    }
-    if (process.env.PERPLEXITY_API_KEY) {
-      providers.push({ name: 'Perplexity', fn: generateWithPerplexity });
-    }
+    return NextResponse.json(questions, {
+      status: 200,
+      headers: {
+        'x-llm-provider': 'Groq',
+        'x-model': 'llama-3.3-70b-versatile',
+        'x-questions-count': String(questions.length),
+      },
+    });
 
-    if (!providers.length) {
-      return NextResponse.json(
-        { error: 'No LLM API keys configured on server' },
-        { status: 500 },
-      );
-    }
-
-    let lastError: Error | null = null;
-
-    for (const provider of providers) {
-      try {
-        const questions = await provider.fn(taskInstruction, count);
-        if (questions && questions.length) {
-          return NextResponse.json(questions, {
-            status: 200,
-            headers: {
-              'x-llm-provider': provider.name,
-            },
-          });
-        }
-      } catch (err: any) {
-        console.error(`Provider ${provider.name} failed`, err);
-        lastError = err instanceof Error ? err : new Error(String(err));
-        continue;
-      }
-    }
-
+  } catch (err) {
+    console.error('❌ Error in /api/questions route:', err);
+    
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+    
     return NextResponse.json(
-      {
-        error:
-          lastError?.message ||
-          'All LLM providers failed. Check server logs for details.',
+      { 
+        error: errorMessage,
+        hint: errorMessage.includes('GROQ_API_KEY') 
+          ? 'Check if GROQ_API_KEY is set in your .env.local file'
+          : 'Try clicking "Retry this band" button. The AI may need another attempt.'
       },
       { status: 500 },
     );
-  } catch (err) {
-    console.error('Error in /api/questions route', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
