@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { jsPDF } from 'jspdf';
 import { Volume2, ArrowRight, ArrowLeft, Check, X, User, Square, Download } from 'lucide-react';
 type Screen = 'welcome' | 'language' | 'level' | 'band' | 'quiz' | 'report';
 type Level = 'Basic' | 'Moderate' | 'Advanced';
@@ -399,11 +398,12 @@ export default function LanguageTutorApp() {
   };
 
 
-const handleDownloadPdf = () => {
+const handleDownloadPdf = async () => {
   if (typeof window === 'undefined') return;
   stopSpeechGlobal();
 
   try {
+        const { jsPDF } = await import('jspdf');
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -501,7 +501,7 @@ const handleDownloadPdf = () => {
       y += 14;
 
       // Questions within band
-      report.answers.forEach((ans, idx) => {
+      report.answers.forEach((ans: AnswerRecord | null, idx: number) => {
         if (!ans) return;
 
         pdf.setFont('helvetica', 'normal');
@@ -538,7 +538,7 @@ const handleDownloadPdf = () => {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(10);
         pdf.setTextColor(15, 23, 42);
-        qLines.forEach((line) => {
+        qLines.forEach((line: string) => {
           pdf.text(line, margin + 4, innerY);
           innerY += questionLineHeight;
         });
@@ -560,7 +560,7 @@ const handleDownloadPdf = () => {
 
         // Explanation
         pdf.setTextColor(75, 85, 99);
-        expLines.forEach((line) => {
+        expLines.forEach((line: string) => {
           pdf.text(line, margin + 4, innerY);
           innerY += explanationLineHeight;
         });
