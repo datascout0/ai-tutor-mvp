@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Volume2, ArrowRight, ArrowLeft, Check, X, User, Square } from 'lucide-react';
-
+import { Volume2, ArrowRight, ArrowLeft, Check, X, User, Square, Download } from 'lucide-react';
 type Screen = 'welcome' | 'language' | 'level' | 'band' | 'quiz' | 'report';
 type Level = 'Basic' | 'Moderate' | 'Advanced';
 type LanguageKey = 'French' | 'German' | 'Spanish' | 'Italian';
@@ -11,9 +10,10 @@ interface Question {
   question: string;
   answer: string;
   options?: string[];
-  direction: 'en-to-target' | 'target-to-en';
-  type: 'multiple-choice' | 'type-answer';
+  direction: 'en-to-target' | 'target-to-en' | 'target-to-target';
+  type: 'multiple-choice' | 'type-answer' | 'fill-in-the-blanks';
   questionLanguage: 'en' | 'target';
+  explanation?: string;
 }
 
 interface AnswerRecord {
@@ -21,6 +21,7 @@ interface AnswerRecord {
   userAnswer: string;
   correctAnswer: string;
   correct: boolean;
+  explanation?: string;
 }
 
 const QUESTIONS_PER_BAND = 6;
@@ -126,6 +127,18 @@ export default function LanguageTutorApp() {
   const [isCorrect, setIsCorrect] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [sessionReports, setSessionReports] = useState<
+    {
+      band: number;
+      level: Level | null;
+      language: LanguageKey | null;
+      answers: AnswerRecord[];
+      score: number;
+      total: number;
+    }[]
+  >([]);
+
+
 
   useEffect(() => {
     return () => {
@@ -173,22 +186,33 @@ export default function LanguageTutorApp() {
         .filter((q) => q && typeof q.question === 'string' && typeof q.answer === 'string')
         .map<Question>((q) => {
           const direction: Question['direction'] =
-            q.direction === 'target-to-en' ? 'target-to-en' : 'en-to-target';
+            q.direction === 'target-to-en'
+              ? 'target-to-en'
+              : q.direction === 'target-to-target'
+              ? 'target-to-target'
+              : 'en-to-target';
+
           const questionLanguage: Question['questionLanguage'] =
             q.questionLanguage === 'target' ? 'target' : 'en';
-          const type: Question['type'] =
-            q.type === 'type-answer' || !q.options || q.options.length === 0
-              ? 'type-answer'
-              : 'multiple-choice';
+
+          let type: Question['type'];
+          if (q.type === 'fill-in-the-blanks') {
+            type = 'fill-in-the-blanks';
+          } else if (q.type === 'type-answer' || !q.options || q.options.length === 0) {
+            type = 'type-answer';
+          } else {
+            type = 'multiple-choice';
+          }
 
           let options: string[] | undefined;
-          if (type === 'multiple-choice') {
+          if (type === 'multiple-choice' || type === 'fill-in-the-blanks') {
             const baseOptions = Array.isArray(q.options) ? q.options.slice() : [];
             if (!baseOptions.includes(q.answer)) {
               baseOptions.push(q.answer);
             }
             const unique = Array.from(new Set(baseOptions.map(String)));
-            options = shuffle(unique).slice(0, 5);
+            const maxOptions = type === 'fill-in-the-blanks' ? 4 : 5;
+            options = shuffle(unique).slice(0, maxOptions);
           }
 
           return {
@@ -198,6 +222,7 @@ export default function LanguageTutorApp() {
             direction,
             type,
             questionLanguage,
+            explanation: q.explanation,
           };
         })
         .slice(0, QUESTIONS_PER_BAND);
@@ -245,6 +270,7 @@ export default function LanguageTutorApp() {
         userAnswer: answer,
         correctAnswer: q.answer,
         correct: isRight,
+        explanation: q.explanation,
       };
       return next;
     });
@@ -263,6 +289,31 @@ export default function LanguageTutorApp() {
       setUserAnswer('');
       return;
     }
+
+    // End of this skill band: store band result in sessionReports
+    const answeredForBand = answers.filter((a): a is AnswerRecord => !!a);
+    const totalForBand = questions.length;
+    const bandEntry = {
+      band: skillBand,
+      level: selectedLevel,
+      language: selectedLanguage,
+      answers: answeredForBand,
+      score,
+      total: totalForBand,
+    };
+
+    setSessionReports((prev) => {
+      const filtered = prev.filter(
+        (r) =>
+          !(
+            r.band === bandEntry.band &&
+            r.level === bandEntry.level &&
+            r.language === bandEntry.language
+          ),
+      );
+      return [...filtered, bandEntry];
+    });
+
     setScreen('report');
   };
 
@@ -292,6 +343,8 @@ export default function LanguageTutorApp() {
     setShowResult(false);
     setIsCorrect(false);
     setFetchError(null);
+    setSessionReports([]);
+
   };
 
   const resetBand = () => {
@@ -333,6 +386,7 @@ export default function LanguageTutorApp() {
     setShowResult(false);
     setIsCorrect(false);
     setFetchError(null);
+    setSessionReports([]);
     setScreen('language');
   };
 
@@ -342,6 +396,200 @@ export default function LanguageTutorApp() {
     const nextBand = skillBand + 1;
     startBand(selectedLanguage, selectedLevel, nextBand);
   };
+
+
+const handleDownloadPdf = async () => {
+  if (typeof window === 'undefined') return;
+  stopSpeechGlobal();
+
+  try {
+        const { jsPDF } = await import('jspdf');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 15;
+    const contentWidth = pageWidth - 2 * margin;
+    const footerHeight = 15;
+    let y = margin;
+
+    const checkPageBreak = (requiredHeight: number) => {
+      if (y + requiredHeight > pageHeight - footerHeight) {
+        // footer on previous page
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(148, 163, 184);
+        pdf.text(
+          `Generated by Learnext AI Language Tutor on ${new Date().toLocaleString()}`,
+          pageWidth / 2,
+          pageHeight - 8,
+          { align: 'center' }
+        );
+        pdf.addPage();
+        y = margin;
+      }
+    };
+
+    // Title
+    pdf.setFontSize(18);
+    pdf.setTextColor(15, 23, 42);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Learnext Language Practice Report', pageWidth / 2, y, { align: 'center' });
+    y += 10;
+
+    // Header info
+    const studentName = username || 'Learner';
+    const langLabel = selectedLanguage || '-';
+    const levelLabel = selectedLevel || '-';
+    const dateLabel = new Date().toLocaleDateString();
+
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(55, 65, 81);
+    pdf.text(`Student: ${studentName}`, margin, y);
+    pdf.text(`Language: ${langLabel}`, margin + 80, y);
+    y += 6;
+    pdf.text(`Level: ${levelLabel}`, margin, y);
+    pdf.text(`Date: ${dateLabel}`, margin + 80, y);
+    y += 10;
+
+    // Overall performance
+    const allAnswers = sessionReports.flatMap((r) => r.answers);
+    const totalQuestions = allAnswers.length;
+    const totalCorrect = allAnswers.filter((a) => a.correct).length;
+    const accuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+
+    pdf.setFontSize(13);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(37, 99, 235);
+    pdf.text('Overall Performance', margin, y);
+    y += 7;
+
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(31, 41, 55);
+    pdf.text(`Total Score: ${totalCorrect}/${totalQuestions}`, margin, y);
+    pdf.text(`Accuracy: ${accuracy}%`, margin + 80, y);
+    y += 10;
+
+    const questionLineHeight = 5;
+    const answerLineHeight = 5;
+    const explanationLineHeight = 4;
+
+    const sortedReports = [...sessionReports].sort((a, b) => a.band - b.band);
+
+    sortedReports.forEach((report) => {
+      if (!report) return;
+
+      // Band header
+      const bandHeaderHeight = 16;
+      checkPageBreak(bandHeaderHeight);
+      pdf.setFillColor(37, 99, 235);
+      pdf.roundedRect(margin, y, contentWidth, 10, 2, 2, 'F');
+
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(`Skill Band ${report.band}`, margin + 4, y + 7);
+
+      const bandAccuracy = report.total > 0 ? Math.round((report.score / report.total) * 100) : 0;
+      pdf.text(
+        `${report.score}/${report.total} (${bandAccuracy}%)`,
+        pageWidth - margin - 4,
+        y + 7,
+        { align: 'right' }
+      );
+      y += 14;
+
+      // Questions within band
+      report.answers.forEach((ans: AnswerRecord | null, idx: number) => {
+        if (!ans) return;
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+
+        const qText = `Q${idx + 1}: ${ans.question}`;
+        const qLines = pdf.splitTextToSize(qText, contentWidth - 10);
+
+        const yourAnswerText = `Your answer: ${ans.userAnswer || '—'}`;
+        const correctAnswerText = !ans.correct ? `Correct answer: ${ans.correctAnswer}` : '';
+        const explanationText = `Explanation: ${
+          ans.explanation || 'The correct option best matches the meaning.'
+        }`;
+        const expLines = pdf.splitTextToSize(explanationText, contentWidth - 10);
+
+        // Compute block height using SAME line heights as rendering
+        let blockHeight = 6; // top padding
+        blockHeight += qLines.length * questionLineHeight + 2;
+        blockHeight += answerLineHeight; // your answer line
+        if (!ans.correct) {
+          blockHeight += answerLineHeight; // correct answer line
+        }
+        blockHeight += expLines.length * explanationLineHeight + 6; // explanation + bottom padding
+
+        checkPageBreak(blockHeight + 4);
+
+        const bg = ans.correct ? [220, 252, 231] : [254, 226, 226];
+        pdf.setFillColor(bg[0], bg[1], bg[2]);
+        pdf.roundedRect(margin, y, contentWidth, blockHeight, 2, 2, 'F');
+
+        let innerY = y + 6;
+
+        // Question lines
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(10);
+        pdf.setTextColor(15, 23, 42);
+        qLines.forEach((line: string) => {
+          pdf.text(line, margin + 4, innerY);
+          innerY += questionLineHeight;
+        });
+        innerY += 2;
+
+        // Your answer
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.setTextColor(31, 41, 55);
+        pdf.text(yourAnswerText, margin + 4, innerY);
+        innerY += answerLineHeight;
+
+        // Correct answer (only if wrong)
+        if (!ans.correct) {
+          pdf.setTextColor(185, 28, 28);
+          pdf.text(correctAnswerText, margin + 4, innerY);
+          innerY += answerLineHeight;
+        }
+
+        // Explanation
+        pdf.setTextColor(75, 85, 99);
+        expLines.forEach((line: string) => {
+          pdf.text(line, margin + 4, innerY);
+          innerY += explanationLineHeight;
+        });
+
+        innerY += 4; // bottom padding inside block
+        y = innerY;
+      });
+
+      y += 4; // gap between bands
+    });
+
+    // Footer on last page
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(148, 163, 184);
+    pdf.text(
+      `Generated by Learnext AI Language Tutor on ${new Date().toLocaleString()}`,
+      pageWidth / 2,
+      pageHeight - 8,
+      { align: 'center' }
+    );
+
+    pdf.save(`${selectedLanguage}-${selectedLevel}-Report-${Date.now()}.pdf`);
+  } catch (err) {
+    console.error('Error generating PDF:', err);
+    alert('Failed to generate PDF. Please try again.');
+  }
+};
+
 
   const UsernameHeader = () => (
     <div className="fixed top-3 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-3 bg-indigo-600 text-white px-5 py-2 rounded-full shadow-lg">
@@ -692,7 +940,7 @@ export default function LanguageTutorApp() {
               </div>
             </div>
 
-            {currentQ.type === 'multiple-choice' ? (
+            {currentQ.type === 'multiple-choice' || currentQ.type === 'fill-in-the-blanks' ? (
               <div className="space-y-3">
                 {currentQ.options?.map((option, idx) => (
                   <button
@@ -766,32 +1014,42 @@ export default function LanguageTutorApp() {
                     Check answer
                   </button>
                 )}
-                {showResult && (
-                  <div
-                    className={`p-4 rounded-xl border-2 ${
-                      isCorrect ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2 mb-1">
-                      {isCorrect ? (
-                        <>
-                          <Check className="w-5 h-5 text-green-600" />
-                          <span className="font-semibold text-green-700">Correct!</span>
-                        </>
-                      ) : (
-                        <>
-                          <X className="w-5 h-5 text-red-600" />
-                          <span className="font-semibold text-red-700">Not quite</span>
-                        </>
-                      )}
-                    </div>
-                    {!isCorrect && (
-                      <div className="text-sm text-gray-900">
-                        Correct answer: <strong>{currentQ.answer}</strong>
-                      </div>
-                    )}
+
+              </div>
+            )}
+
+            {showResult && (
+              <div
+                className={`mt-6 p-4 rounded-xl border-2 ${
+                  isCorrect ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50'
+                }`}
+              >
+                <div className="flex items-center space-x-2 mb-1">
+                  {isCorrect ? (
+                    <>
+                      <Check className="w-5 h-5 text-green-600" />
+                      <span className="font-semibold text-green-700">Correct!</span>
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-5 h-5 text-red-600" />
+                      <span className="font-semibold text-red-700">Not quite</span>
+                    </>
+                  )}
+                </div>
+                {!isCorrect && (
+                  <div className="text-sm text-gray-900">
+                    Correct answer: <strong>{currentQ.answer}</strong>
                   </div>
                 )}
+                <div className="text-sm text-gray-900 mt-2">
+                  <span className="font-semibold">Explanation:</span>{' '}
+                  <span className="font-normal">
+                    {answers[currentQuestionIndex]?.explanation ||
+                      currentQ.explanation ||
+                      'The correct answer best fits the meaning and natural usage in this context.'}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -860,7 +1118,7 @@ export default function LanguageTutorApp() {
               <div className="text-sm text-gray-800">Accuracy</div>
             </div>
           </div>
-          <div className="max-h-80 overflow-y-auto mb-6 space-y-2">
+                    <div className="max-h-80 overflow-y-auto mb-6 space-y-2">
             {answered.map((a, idx) => (
               <div
                 key={idx}
@@ -879,9 +1137,17 @@ export default function LanguageTutorApp() {
                     Correct: <span className="font-medium">{a.correctAnswer}</span>
                   </div>
                 )}
+                <div className="text-gray-800 mt-1">
+                  Explanation:{' '}
+                  <span className="font-normal">
+                    {a.explanation ||
+                      'The correct answer best fits the meaning and natural usage in this context.'}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
+
           <div className="flex flex-col md:flex-row gap-3 mt-6">
             <button
               type="button"
@@ -890,7 +1156,6 @@ export default function LanguageTutorApp() {
             >
               Retry this skill band
             </button>
-            
             <button
               type="button"
               onClick={goToLevelSelection}
@@ -898,16 +1163,31 @@ export default function LanguageTutorApp() {
             >
               Change Level
             </button>
-             {skillBand < 5 && (
-    <button
-      type="button"
-      onClick={goToNextBand}
-      className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700"
-    >
-      Go to next skill band
-    </button>
-  )}
+            {skillBand < 5 && (
+              <button
+                type="button"
+                onClick={goToNextBand}
+                className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700"
+              >
+                Go to next skill band
+              </button>
+            )}
           </div>
+
+          <div className="mt-6 border-t border-gray-200 pt-4">
+  <button
+    type="button"
+    onClick={handleDownloadPdf}
+    className="w-full md:w-auto bg-purple-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-purple-700 flex items-center justify-center gap-2"
+  >
+    <Download className="w-5 h-5" />
+    Download Full Report as PDF
+  </button>
+  <p className="mt-2 text-sm text-gray-600 text-center">
+    Download includes all {sessionReports.length} band{sessionReports.length !== 1 ? 's' : ''} completed in this session
+  </p>
+</div>
+
           <button
             type="button"
             onClick={resetLanguageFlow}
@@ -915,7 +1195,7 @@ export default function LanguageTutorApp() {
           >
             Change language
           </button>
-        </div>
+   </div>
       </div>
     );
   }

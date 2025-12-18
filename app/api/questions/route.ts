@@ -7,9 +7,10 @@ interface Question {
   question: string;
   answer: string;
   options?: string[];
-  direction: 'en-to-target' | 'target-to-en';
-  type: 'multiple-choice' | 'type-answer';
+  direction: 'en-to-target' | 'target-to-en' | 'target-to-target';
+  type: 'multiple-choice' | 'type-answer' | 'fill-in-the-blanks';
   questionLanguage: 'en' | 'target';
+  explanation?: string;
 }
 
 function difficultyDescriptor(band: number): string {
@@ -28,6 +29,8 @@ function difficultyDescriptor(band: number): string {
   }
 }
 
+
+
 function buildTaskInstruction(
   language: LanguageKey,
   level: Level,
@@ -37,178 +40,355 @@ function buildTaskInstruction(
   const difficulty = difficultyDescriptor(band);
 
   if (level === 'Basic') {
-    return `You are a ${language} language teacher. Generate EXACTLY ${count} vocabulary questions for skill band ${band} of 5.
+    return `You are a ${language} language teacher.
+Create a clean JSON dataset of EXACTLY ${count} beginner VOCABULARY questions for SKILL BAND ${band} of 5.
 
-CRITICAL REQUIREMENTS:
-- Difficulty: ${difficulty}
-- Single words or very short phrases only
-- Mix directions: half English→${language}, half ${language}→English
-- Each question has 5 multiple choice options
-- All options must be real ${language} words
+Learner profile:
+- Native language: English
+- Target language: ${language}
+- CEFR difficulty: ${difficulty}
 
-RESPONSE FORMAT - Return ONLY this JSON structure with NO other text:
+Pedagogy:
+- Basic level = single words or very short 1–2 word phrases only.
+- No full sentences or paragraphs.
+- Each higher band must clearly feel harder using different topic clusters:
+  Band 1: greetings, yes/no, please/thank you, numbers 1–20, basic colours.
+  Band 2: food & drinks, cafe/restaurant vocabulary (nouns + 2–3 common verbs).
+  Band 3: family, people, simple jobs, common everyday objects.
+  Band 4: places in town, transport, simple directions.
+  Band 5: time expressions, days of week, daily routine verbs.
+
+Question design:
+- ALL questions are multiple-choice.
+- 4–5 options per question.
+- Answer Options should be confusing enough.
+- At least half of the questions must be English → ${language}.
+- The rest must be ${language} → English.
+- All options must be real, plausible words in the correct language.
+- Do NOT repeat the exact same word across different bands.
+
+Required JSON format:
+Return ONLY a JSON array, with no markdown and no explanations outside the JSON. Use exactly these keys for every item:
+
 [
   {
     "question": "Hello",
     "answer": "Bonjour",
-    "options": ["Bonjour", "Au revoir", "Merci", "Bonsoir", "Salut"],
+    "options": ["Bonjour", "Au revoir", "Merci", "Bonsoir"],
     "direction": "en-to-target",
     "type": "multiple-choice",
-    "questionLanguage": "en"
+    "questionLanguage": "en",
+    "explanation": "This is the standard way to say 'Hello' in French."
   }
 ]
 
-DO NOT include markdown, explanations, or any text outside the JSON array.`;
+Rules:
+- "questionLanguage" = "en" when the question text is in English, "target" when it is in ${language}.
+- "direction" must be "en-to-target" or "target-to-en" and must match the actual translation direction.
+- The correct answer MUST appear inside "options" exactly once.
+- "explanation" must be 1–2 short sentences in English describing WHY the answer is correct.
+- Do NOT include any fields other than the ones shown.`;
   }
 
   if (level === 'Moderate') {
-    return `You are a ${language} language teacher. Generate EXACTLY ${count} conversational questions for skill band ${band} of 5.
+    return `You are a ${language} language teacher.
+Create a clean JSON dataset of EXACTLY ${count} everyday CONVERSATIONAL questions for SKILL BAND ${band} of 5.
 
-CRITICAL REQUIREMENTS:
-- Difficulty: ${difficulty}
-- Phrases and short sentences
-- 60% multiple choice (3 options), 40% type-answer (no options)
-- Mix directions
+Learner profile:
+- Native language: English
+- Target language: ${language}
+- CEFR difficulty: ${difficulty}
 
-RESPONSE FORMAT - Return ONLY this JSON structure with NO other text:
+Pedagogy:
+- Moderate level = short everyday sentences (5–12 words) and common phrases.
+- No long paragraphs.
+- Each higher band must clearly feel more complex:
+  Band 1: greetings, introductions, simple "How are you?"-type exchanges.
+  Band 2: food orders, directions, shopping, basic travel situations.
+  Band 3: daily routines, hobbies, preferences, invitations.
+  Band 4: describing problems, giving reasons, simple opinions using "because", "but".
+  Band 5: expressing plans, comparing options, simple past/future actions.
+
+Question types:
+- Use a MIX of:
+  - "multiple-choice" questions,
+  - "type-answer" questions,
+  - "fill-in-the-blanks" questions.
+- "fill-in-the-blanks" questions must:
+  - have the question text entirely in ${language},
+  - have all options entirely in ${language},
+  - represent the correct answer as one string, e.g. "eau / allée",
+  - use 4 options in total,
+  - use "direction": "target-to-target",
+  - use "questionLanguage": "target".
+  - have 1-2 blanks
+
+Question design:
+- Mix directions: English → ${language}, ${language} → English, and target-only for fill-in.
+- Answer Options should be confusing enough.
+- About 50% multiple-choice, 20% type-answer, 30% fill-in-the-blanks across the set.
+
+Required JSON format:
+Return ONLY a JSON array with no extra text. Use exactly these keys:
+
 [
   {
-    "question": "How are you?",
-    "answer": "Comment allez-vous?",
-    "options": ["Comment allez-vous?", "Où est la gare?", "Je m'appelle"],
+    "question": "Where is the train station?",
+    "answer": "Où est la gare ?",
+    "options": [
+      "Où est la gare ?",
+      "Je prends le bus.",
+      "Je voudrais un café."
+    ],
     "direction": "en-to-target",
     "type": "multiple-choice",
-    "questionLanguage": "en"
+    "questionLanguage": "en",
+    "explanation": "This is the direct translation of 'Where is the train station?' in French."
   },
   {
-    "question": "Merci beaucoup",
-    "answer": "Thank you very much",
+    "question": "Je travaille à la maison.",
+    "answer": "I work from home.",
+    "options": [],
     "direction": "target-to-en",
     "type": "type-answer",
-    "questionLanguage": "target"
+    "questionLanguage": "target",
+    "explanation": "The sentence literally means 'I work at the house', which is used to mean 'I work from home.'"
+  },
+  {
+    "question": "Quand il fait très chaud, je bois beaucoup d'_____ et je cherche toujours l'_____ la plus ombragée.",
+    "answer": "eau / allée",
+    "options": ["eau / allée", "air / heure", "lait / maison", "jus / journée"],
+    "direction": "target-to-target",
+    "type": "fill-in-the-blanks",
+    "questionLanguage": "target",
+    "explanation": "In hot weather you drink water and look for the shadiest path, so 'eau / allée' is the natural combination."
   }
 ]
 
-DO NOT include markdown, explanations, or any text outside the JSON array.`;
+Rules:
+- For "multiple-choice": "options" must be an array of 3–5 full candidate answers in the answer language and MUST include the correct answer exactly once.
+- For "type-answer": set "options" to [] (an empty array).
+- For "fill-in-the-blanks":
+  - "question" and all "options" must be in ${language} only.
+  - "direction" must be "target-to-target".
+  - "questionLanguage" must be "target".
+  - "options" must contain exactly 4 entries and include the correct answer exactly once.
+- "explanation" must be 1–2 short sentences in English explaining why the answer is correct.
+- Do NOT include any keys other than: question, answer, options, direction, type, questionLanguage, explanation.`;
   }
 
-  return `You are a ${language} language teacher. Generate EXACTLY ${count} advanced questions for skill band ${band} of 5.
+  // Advanced level
+  return `You are a professional ${language} language teacher.
+Create a clean JSON dataset of EXACTLY ${count} ADVANCED questions for SKILL BAND ${band} of 5.
 
-CRITICAL REQUIREMENTS:
-- Difficulty: ${difficulty}
-- Professional sentences or short paragraphs
-- 50% multiple choice (3 options), 50% type-answer
-- Mix directions
+Learner profile:
+- Native language: English
+- Target language: ${language}
+- Adult learner using the language in a business or professional context.
+- CEFR difficulty: ${difficulty}
 
-RESPONSE FORMAT - Return ONLY a JSON array with NO other text.
-DO NOT include markdown, explanations, or any text outside the JSON array.`;
+Pedagogy:
+- Advanced level = longer, natural sentences or short 1–2 sentence paragraphs.
+- Focus on professional and elevator-pitch style topics:
+  Band 1: simple job & company descriptions ("I work as...", "My company does...").
+  Band 2: daily responsibilities, tools, and simple project descriptions.
+  Band 3: explaining goals, challenges, and outcomes of a project.
+  Band 4: describing trade-offs, stakeholder communication, giving structured opinions.
+  Band 5: vision, strategy, future impact, more abstract concepts.
+
+Question types:
+- Use a MIX of:
+  - "multiple-choice" questions,
+  - "type-answer" questions,
+  - "fill-in-the-blanks" questions using more advanced vocabulary and grammar.
+
+Question design:
+- Approximately 30% type-answer (to force free production), 40% multiple-choice and 30% fill-in combined.
+- Mix directions: English → ${language}, ${language} → English, and target-only for fill-in-the-blanks.
+- Answer Options should be confusing enough.
+- "fill-in-the-blanks" questions:
+  - are written entirely in ${language},
+  - may contain 2–3 blanks,
+  - have 4 options, each option being a full candidate completion in ${language},
+  - use "direction": "target-to-target",
+  - use "questionLanguage": "target".
+
+Required JSON format:
+Return ONLY a JSON array with no extra text. Use exactly these keys:
+
+[
+  {
+    "question": "I work as a product manager in a tech company that builds mobile applications.",
+    "answer": "Je travaille comme chef de produit dans une entreprise technologique qui développe des applications mobiles.",
+    "options": [
+      "Je travaille comme chef de produit dans une entreprise technologique qui développe des applications mobiles.",
+      "Je suis étudiant en informatique.",
+      "Je travaille dans un restaurant."
+    ],
+    "direction": "en-to-target",
+    "type": "multiple-choice",
+    "questionLanguage": "en",
+    "explanation": "This option correctly expresses working as a product manager in a tech company that builds mobile apps."
+  },
+  {
+    "question": "Nous avons décidé de lancer le produit plus tard afin d'améliorer la qualité et de réduire les risques pour les clients.",
+    "answer": "We decided to launch the product later in order to improve quality and reduce risk for customers.",
+    "options": [],
+    "direction": "target-to-en",
+    "type": "type-answer",
+    "questionLanguage": "target",
+    "explanation": "The sentence explains delaying the launch to improve quality and reduce risk for customers."
+  },
+  {
+    "question": "Si nous voulons réussir sur ce marché, nous devons définir une _____ claire et impliquer tous les _____ dès le début.",
+    "answer": "stratégie / acteurs",
+    "options": [
+      "stratégie / acteurs",
+      "campagne / clients",
+      "promotion / utilisateurs",
+      "réduction / partenaires"
+    ],
+    "direction": "target-to-target",
+    "type": "fill-in-the-blanks",
+    "questionLanguage": "target",
+    "explanation": "In a business context you define a strategy and involve all stakeholders ('acteurs') from the beginning."
+  }
+]
+
+Rules:
+- For "multiple-choice": "options" must include the correct answer exactly once and at least 3 total options.
+- For "type-answer": set "options" to [] (empty array).
+- For "fill-in-the-blanks":
+  - "question" and all "options" must be in ${language} only.
+  - "direction" must be "target-to-target".
+  - "questionLanguage" must be "target".
+  - "options" must contain exactly 4 entries and include the correct answer exactly once.
+- "explanation" must be 1–2 short sentences in English explaining why the answer is correct.
+- Do NOT write any explanations, headings or comments outside the JSON array.`;
 }
 
 function parseQuestionsFromText(rawText: string, count: number): Question[] {
   console.log('Raw AI response (first 200 chars):', rawText.slice(0, 200));
-  
-  // Remove markdown code blocks
+
+  // Strip markdown code fences if present
   let content = rawText
-    .replace(/```json\s*/g, '')
+    .replace(/```json\s*/gi, '')
     .replace(/```\s*/g, '')
     .trim();
-  
-  // Remove any text before the first [
-  const startIndex = content.indexOf('[');
-  if (startIndex > 0) {
-    content = content.slice(startIndex);
+
+  // Keep only the JSON array part
+  const firstBracket = content.indexOf('[');
+  if (firstBracket > 0) {
+    content = content.slice(firstBracket);
   }
-  
-  // Remove any text after the last ]
-  const endIndex = content.lastIndexOf(']');
-  if (endIndex !== -1) {
-    content = content.slice(0, endIndex + 1);
+  const lastBracket = content.lastIndexOf(']');
+  if (lastBracket !== -1 && lastBracket < content.length - 1) {
+    content = content.slice(0, lastBracket + 1);
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);
   } catch (err) {
-    console.error('JSON Parse Error:', err);
-    console.error('Attempted to parse:', content.slice(0, 500));
-    throw new Error('AI returned invalid JSON. The model may need a moment to respond properly.');
+    console.error('JSON parse failed:', err);
+    throw new Error('AI returned invalid JSON. Please retry this skill band.');
   }
 
   if (!Array.isArray(parsed)) {
-    console.error('Response is not an array:', parsed);
-    throw new Error('AI response is not a valid array');
+    console.error('AI response is not an array:', parsed);
+    throw new Error('AI response is not a valid array of questions.');
   }
 
-  if (parsed.length === 0) {
-    throw new Error('AI returned an empty array');
-  }
-
-  console.log(`AI returned ${parsed.length} items, processing...`);
-
-  const items = (parsed as any[]).slice(0, count);
   const questions: Question[] = [];
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    
-    // Validate required fields
-    if (!item.question || !item.answer) {
-      console.warn(`Skipping item ${i}: missing question or answer`, item);
-      continue;
-    }
+  for (const item of parsed) {
+    if (!item || typeof item !== 'object') continue;
+    const raw = item as any;
 
-    const baseQuestion = String(item.question).trim();
-    const baseAnswer = String(item.answer).trim();
+    const qText =
+      typeof raw.question === 'string' && raw.question.trim().length > 0
+        ? raw.question.trim()
+        : '';
+    const aText =
+      typeof raw.answer === 'string' && raw.answer.trim().length > 0
+        ? raw.answer.trim()
+        : '';
 
-    if (!baseQuestion || !baseAnswer) {
-      console.warn(`Skipping item ${i}: empty question or answer`);
+    if (!qText || !aText) {
+      console.warn('Skipping item: missing question or answer', raw);
       continue;
     }
 
     const direction: Question['direction'] =
-      item.direction === 'target-to-en' ? 'target-to-en' : 'en-to-target';
+      raw.direction === 'target-to-en'
+        ? 'target-to-en'
+        : raw.direction === 'target-to-target'
+        ? 'target-to-target'
+        : 'en-to-target';
 
     const questionLanguage: Question['questionLanguage'] =
-      item.questionLanguage === 'target' ? 'target' : 'en';
+      raw.questionLanguage === 'target' ? 'target' : 'en';
 
-    // Determine type based on presence of options
-    const hasOptions = Array.isArray(item.options) && item.options.length > 0;
-    const type: Question['type'] = hasOptions ? 'multiple-choice' : 'type-answer';
+    const hasOptions = Array.isArray(raw.options) && raw.options.length > 0;
+    const inferredType: Question['type'] = hasOptions ? 'multiple-choice' : 'type-answer';
+
+    let type: Question['type'];
+    if (raw.type === 'fill-in-the-blanks') {
+      type = 'fill-in-the-blanks';
+    } else if (raw.type === 'type-answer' || !hasOptions) {
+      type = 'type-answer';
+    } else {
+      type = 'multiple-choice';
+    }
 
     let options: string[] | undefined;
-    if (type === 'multiple-choice') {
-      const rawOptions = Array.isArray(item.options) ? item.options : [];
+    if (type === 'multiple-choice' || type === 'fill-in-the-blanks') {
+      const rawOptions = Array.isArray(raw.options) ? raw.options : [];
       const baseOptions: string[] = rawOptions
         .map((o: any) => String(o).trim())
         .filter((o: string) => o.length > 0);
-      
-      // Ensure answer is in options
-      if (!baseOptions.includes(baseAnswer)) {
-        baseOptions.push(baseAnswer);
+
+      if (!baseOptions.includes(aText)) {
+        baseOptions.push(aText);
       }
-      
-      // Remove duplicates and shuffle
+
       const unique: string[] = Array.from(new Set(baseOptions));
-      options = shuffle(unique).slice(0, 5);
-      
-      // If we don't have enough options, skip this question
-      if (options.length < 2) {
-        console.warn(`Skipping item ${i}: not enough valid options`);
+      const maxOptions = type === 'fill-in-the-blanks' ? 4 : 5;
+      options = shuffle(unique).slice(0, Math.min(unique.length, maxOptions));
+
+      if (!options || options.length < 2) {
+        console.warn('Skipping item: not enough valid options', raw);
         continue;
       }
     }
 
+    const explanationText =
+      typeof raw.explanation === 'string' && raw.explanation.trim().length > 0
+        ? raw.explanation.trim()
+        : '';
+
+    const explanation =
+      explanationText ||
+      (type === 'fill-in-the-blanks'
+        ? 'The correct option best completes the sentence naturally in the target language.'
+        : 'The correct answer best matches the intended meaning and natural usage in this context.');
+
     questions.push({
-      question: baseQuestion,
-      answer: baseAnswer,
+      question: qText,
+      answer: aText,
       options,
       direction,
       type,
       questionLanguage,
+      explanation,
     });
+
+    if (questions.length >= count) {
+      break;
+    }
   }
 
-  console.log(`Successfully processed ${questions.length} valid questions`);
+  console.log(`Successfully processed ${questions.length} questions out of requested ${count}.`);
 
   if (questions.length === 0) {
     throw new Error('No valid questions could be extracted from AI response');
@@ -216,7 +396,6 @@ function parseQuestionsFromText(rawText: string, count: number): Question[] {
 
   return questions;
 }
-
 function shuffle<T>(arr: T[]): T[] {
   const copy = [...arr];
   for (let i = copy.length - 1; i > 0; i -= 1) {
@@ -242,7 +421,7 @@ async function generateWithGroq(
       messages: [
         {
           role: 'system',
-          content: 'You are a language teacher. Always respond with ONLY valid JSON arrays. Never include explanations, markdown formatting, or any text outside the JSON structure.',
+          content: 'You are a language teacher. Always respond with ONLY valid JSON arrays of question objects that follow the requested schema, including an "explanation" field in English for each question. Do not include markdown formatting or any extra text outside the JSON array.',
         },
         {
           role: 'user',
