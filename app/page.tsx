@@ -403,7 +403,7 @@ const handleDownloadPdf = async () => {
   stopSpeechGlobal();
 
   try {
-        const { jsPDF } = await import('jspdf');
+    const jsPDF = (await import('jspdf')).default;;
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
