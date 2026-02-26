@@ -403,7 +403,7 @@ const handleDownloadPdf = async () => {
   stopSpeechGlobal();
 
   try {
-        const { jsPDF } = await import('jspdf');
+    const jsPDF = (await import('jspdf')).default;;
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -597,7 +597,37 @@ const handleDownloadPdf = async () => {
       <span className="font-semibold text-base">{username || 'Guest'}</span>
     </div>
   );
-
+//newly added portfolio website link
+const Footer = () => (
+  <div className="mt-8 pt-6 border-t border-gray-200">
+    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-xs">
+      <a 
+        href="https://shubhamdahat.substack.com/p/learnext-ai-language-tutor-mvp" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="group flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-gray-50 hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition-all duration-200"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+        <span className="font-medium">About Learnext</span>
+      </a>
+      
+      <a 
+        href="https://www.shubhamdahat.in/" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="group flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-gray-50 hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition-all duration-200"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        <span className="font-medium">Portfolio</span>
+      </a>
+    </div>
+    <p className="text-center text-xs text-gray-500 mt-3">Created by Shubham Dahat</p>
+  </div>
+);
   // 1. Welcome screen
   if (screen === 'welcome') {
     return (
@@ -611,7 +641,7 @@ const handleDownloadPdf = async () => {
           <div className="space-y-4">
             <input
               type="text"
-              placeholder="Enter your username"
+              placeholder="Enter your name"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               onKeyDown={(e) => {
@@ -629,6 +659,9 @@ const handleDownloadPdf = async () => {
               Get Started
             </button>
           </div>
+          
+          {/* ADD THIS FOOTER */}
+          <Footer />
         </div>
       </div>
     );
@@ -1195,6 +1228,7 @@ const handleDownloadPdf = async () => {
           >
             Change language
           </button>
+           <Footer />
    </div>
       </div>
     );

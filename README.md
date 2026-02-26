@@ -51,7 +51,7 @@ UI (app/page.tsx)
 
 ## Screenshots
 Landing screen-Enter any Username
-![Landing screen-Enter any Username](./public/readme/username_screen.jpg)
+![Landing screen-Enter any Username](./public/readme/01-username_screen.jpg)
 Language selection  
 ![Language selection](./public/readme/02-select_language.jpg)
 
