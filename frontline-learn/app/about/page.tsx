@@ -101,6 +101,31 @@ export default function About() {
           </ul>
         </Section>
 
+        <Section title="The bigger bet: from questions to courses">
+          <p>
+            Faster drafting answers &quot;how do we make this course?&quot;, but not &quot;which course do we need?&quot;. Store teams
+            already say where training isn&apos;t landing: in the questions they ask a store assistant and the quiz questions they miss.
+          </p>
+          <ol className="list-decimal space-y-1 pl-5">
+            <li>
+              <b>Rank</b> topics by questions per 100 associates, how often the assistant couldn&apos;t resolve them, and quiz misses.
+            </li>
+            <li>
+              <b>Pick the right fix</b>, because most topics don&apos;t need a new course: ask HQ for a missing procedure, fix sources that
+              disagree, repeat it in the daily quiz, or leave it to the assistant.
+            </li>
+            <li>
+              <b>Draft a refresher</b> only where an approved source exists, with the same tracing and review as above.
+            </li>
+            <li>
+              <b>Target and measure</b>: send it to the stores that asked, in two waves, and compare question rates between the waves.
+            </li>
+          </ol>
+          <Link href="/questions" className="inline-block text-sm font-medium text-indigo-600 underline">
+            Click through the questions-to-courses flow
+          </Link>
+        </Section>
+
         <Section title="If I took this further">
           <ul className="list-disc space-y-1 pl-5">
             <li>Pilot with a few stores on real procedures, and compare review time with and without tracing.</li>

@@ -22,6 +22,15 @@ Keep the speed of AI drafting, but make every item **traceable** and only ask th
 
 The samples include deliberate failures so the checks can be seen working: an invented "two team members must be present" rule in the opening procedure, and €129 becoming €192 in the Spanish launch sheet.
 
+## The bigger bet: from questions to courses (`/questions`)
+
+Faster drafting answers *"how do we make this course?"*, not *"which course do we need, and did it work?"*. Store teams already say where training isn't landing, in the questions they ask a store assistant and the quiz questions they miss.
+
+1. **Rank** topics by questions per 100 associates, how often the assistant couldn't resolve them (no answer or rated unhelpful), and first-try quiz misses, weighted up when a mistake costs money.
+2. **Pick the right fix.** In the demo, only 1 of 5 topics needs a new course: one has no approved source (ask HQ for a procedure, never let the AI invent one), one has two sources that disagree (fix the source first), one belongs in the daily quiz, and one the assistant already handles well.
+3. **Draft a refresher** from the approved source, with the same tracing and review gate. The demo draft adds a receipt rule that isn't in the launch sheet, and it gets flagged.
+4. **Target and measure:** send it only to the 19 stores that asked, in two waves a week apart, and compare question rates between the waves. That separates the refresher's effect from questions falling on their own. Results in the demo are simulated and labelled as such.
+
 ## Why simple rules rather than another AI judge
 
 - A manager can see exactly *why* something was flagged ("uses a number not in your procedure: 2").
