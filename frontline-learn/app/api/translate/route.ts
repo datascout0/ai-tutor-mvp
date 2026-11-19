@@ -6,6 +6,8 @@ import { DEMO_TRANSLATIONS } from "@/lib/samples";
 import type { Course, Lang, TranslateResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
+// Live generation can take several seconds when the first model is rate-limited and it falls back.
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   let body: { course?: Course; target?: Lang; sampleId?: string | null; forceDemo?: boolean };

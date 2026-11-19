@@ -6,6 +6,8 @@ import { DEMO_COURSES, getSample } from "@/lib/samples";
 import type { GenerateResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
+// Live generation can take several seconds when the first model is rate-limited and it falls back.
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   const started = Date.now();
