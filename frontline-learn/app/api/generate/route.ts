@@ -29,7 +29,9 @@ export async function POST(req: Request) {
 
   const sample = getSample(body.sampleId);
   const sampleUnchanged = sample && sample.sourceText.trim() === sourceText;
-  const useDemo = body.forceDemo || !hasGroqKey();
+  // Unedited samples always use the pre-generated output, so the planted errors are there for the checks to catch.
+  // Live generation is for text the user pastes.
+  const useDemo = body.forceDemo || !hasGroqKey() || Boolean(sampleUnchanged);
 
   if (useDemo) {
     if (!sampleUnchanged || !sample) {

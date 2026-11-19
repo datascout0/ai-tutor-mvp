@@ -42,7 +42,8 @@ export default function SourceStep(p: Props) {
           </button>
         ))}
         <div className="rounded-xl border border-dashed border-slate-300 p-3 text-xs text-slate-500">
-          You can also paste your own procedure into the source box. Your own text needs a Groq API key; the two samples work without one.
+          The two samples use pre-generated output with planted errors, so you can watch the checks catch them. Paste your own procedure
+          into the source box to generate live.
         </div>
       </aside>
 

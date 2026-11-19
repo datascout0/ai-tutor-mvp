@@ -21,7 +21,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing course or unsupported target language" }, { status: 400 });
   }
 
-  const useDemo = body.forceDemo || !hasGroqKey();
+  // Unedited samples keep their pre-written translations (including the planted price error); everything else is live.
+  const hasDemo = Boolean(sampleId && DEMO_TRANSLATIONS[sampleId]?.[target]);
+  const useDemo = body.forceDemo || !hasGroqKey() || hasDemo;
 
   if (useDemo) {
     const demo = sampleId ? DEMO_TRANSLATIONS[sampleId]?.[target] : undefined;
